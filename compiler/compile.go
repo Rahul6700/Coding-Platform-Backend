@@ -39,7 +39,7 @@ func Compile(c *gin.Context){
     return
 }
   //opening db connection
-  db, err := gorm.Open(sqlite.Open("code.db"),&gorm.Config{})
+  db, err := gorm.Open(sqlite.Open("data.db"),&gorm.Config{})
   if err != nil{
     panic("initial connection to db unsuccessful")
   }
