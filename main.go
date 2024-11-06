@@ -3,6 +3,7 @@ package main
 import (
   "final/auth"
   "final/compiler"
+  "final/questions"
   "github.com/gin-gonic/gin"
   "gorm.io/gorm"
   "gorm.io/driver/sqlite"
@@ -17,6 +18,7 @@ func main(){
      panic("failed to connect to the database")
   }
 
+
   db.AutoMigrate(&compiler.Dbstruct{}, &auth.User{})
 
   auth.SetDB(db)
@@ -28,6 +30,9 @@ func main(){
   r.GET("/fetch",auth.Fetch)
 
   r.POST("/run",compiler.Compile)
+
+  r.POST("/question",questions.CreateQuestion)
+  r.GET("/question",questions.FetchQuestions)
 
   r.Run()
 

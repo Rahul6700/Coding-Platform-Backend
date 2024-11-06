@@ -12,6 +12,8 @@ import (
 //   Password string  `json:"password"`
 // }
 
+//var SECRET_KEY = "I am the secret key"
+
 func SignIn(c *gin.Context){
 
     var dets User;
@@ -35,8 +37,8 @@ func SignIn(c *gin.Context){
 
     db := GetDB() //get the db from the db.go file
 
-    var user User
-    result := db.Where("username = ? AND password = ?", dets.Username, dets.Password).First(&user)
+    var Person User
+    result := db.Where("username = ? AND password = ?", dets.Username, dets.Password).First(&Person)
 
     if result.Error != nil {
         if result.Error == gorm.ErrRecordNotFound {
@@ -47,6 +49,6 @@ func SignIn(c *gin.Context){
         }
         return
     }
-    
-    c.JSON(200, gin.H{"sucessfully signed in": user.Username})    
+
+    c.JSON(200, gin.H{"sucessfully signed in": Person.Username})    
 }

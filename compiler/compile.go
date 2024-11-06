@@ -34,8 +34,7 @@ type Dbstruct struct {
 func Compile(c *gin.Context){
 
   var details Inp
-
-  if err := c.BindJSON(&details); err != nil {
+   if err := c.BindJSON(&details); err != nil {
     c.String(400, "Invalid input: %v", err)
     return
 }
@@ -87,7 +86,7 @@ if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 
   }else if details.Language == "javascript"{
 
-    cmd := exec.Command("javascript","temp.txt")
+    cmd := exec.Command("node","temp.txt")
     cmd.Stdin = strings.NewReader(details.Input)
     //fmt.Println("running code with",details.Input)
     //cmd.Run()
@@ -153,7 +152,6 @@ if errors.Is(result.Error, gorm.ErrRecordNotFound) {
   return
 
 }
-
 // fetching output from db using memorisation
 if result.RowsAffected > 0 {
     var myInput Dbstruct
