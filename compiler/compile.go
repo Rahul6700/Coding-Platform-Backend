@@ -10,6 +10,8 @@ import (
   "fmt"
   "gorm.io/gorm"
   "gorm.io/driver/sqlite"
+  "final/key"
+  "github.com/golang-jwt/jwt/v5"
 )
 
 type Inp struct{
@@ -33,13 +35,32 @@ type Dbstruct struct {
 
 func Compile(c *gin.Context){
 
+  //token validation happens first
+  tokenstring := c.GetHeader("Authorization") //token is fetched from header
+  if tokenstring == "" {
+    c.String(400, "token missing")
+    return
+  }
+
+  //token signing using the secret key
+	token, err := jwt.Parse(tokenstring, func(token *jwt.Token) (interface{}, error) {
+		return []byte(key.SECRET_KEY), nil 
+	})
+
+  //if validation fails, the function execution terminates
+	if err != nil || !token.Valid {
+		c.String(400, "Token validation failed")
+		return
+	}
+
+	//if token passes all these, the function runs
   var details Inp
    if err := c.BindJSON(&details); err != nil {
     c.String(400, "Invalid input: %v", err)
     return
 }
   //opening db connection
-  db, err := gorm.Open(sqlite.Open("data.db"),&gorm.Config{})
+  db, err := gorm.Open(sqlite.Open("code.db"),&gorm.Config{})
   if err != nil{
     panic("initial connection to db unsuccessful")
   }

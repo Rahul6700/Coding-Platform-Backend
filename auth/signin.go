@@ -5,6 +5,9 @@ import (
   //"gorm.io/driver/sqlite"
   "github.com/gin-gonic/gin"
   "fmt"
+  "final/key"
+  "time"
+  "github.com/golang-jwt/jwt/v5"
 )
 //
 // type SignInStruct struct {
@@ -49,6 +52,18 @@ func SignIn(c *gin.Context){
         }
         return
     }
+    
+    //upon successful signin a JWT is generated for that username
+	ttl := time.Second * 300 //token's time to live is 5 mins
+	claims := jwt.MapClaims{
+		"username": Person.Username,
+		"exp":      time.Now().Add(ttl).Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenString, err := token.SignedString([]byte(key.SECRET_KEY))
+	if err != nil {
+		c.String(500,"error signing token")
+	}
 
-    c.JSON(200, gin.H{"sucessfully signed in": Person.Username})    
+    c.JSON(200, gin.H{"Signed in successfully, here is your JWT": tokenString})    
 }
