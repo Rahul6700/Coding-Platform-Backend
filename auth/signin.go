@@ -24,7 +24,7 @@ func SignIn(c *gin.Context){
         c.JSON(400, gin.H{"error": "Invalid input"})
         return
     }
-    
+
     // db, err := gorm.Open(sqlite.Open("code.db"),&gorm.Config{})
     // if err != nil {
     //   c.JSON(500,"failed to open DB connection in Singin")

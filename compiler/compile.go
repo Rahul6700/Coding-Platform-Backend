@@ -1,6 +1,8 @@
 package compiler
 
 import (
+  "context"
+  "time"
   "github.com/gin-gonic/gin"
   "os"
   "os/exec"
@@ -89,15 +91,23 @@ var buff bytes.Buffer
 //if no memorisation found
 if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 
+  ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+  defer cancel()
+
   if details.Language == "python"{
 
-    cmd := exec.Command("python3","temp.txt")
+    cmd := exec.CommandContext(ctx,"python3","temp.txt")
     cmd.Stdin = strings.NewReader(details.Input)
     //fmt.Println("running code with",details.Input)
     //cmd.Run()
     cmd.Stdout = &buff
     cmd.Stderr = &buff
     err = cmd.Run()
+
+  if ctx.Err() == context.DeadlineExceeded { 
+    c.String(400, "Code execution timed out")
+    return
+  }
 
     if err != nil{
       c.String(400,"error running code")
@@ -107,7 +117,7 @@ if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 
   }else if details.Language == "javascript"{
 
-    cmd := exec.Command("node","temp.txt")
+    cmd := exec.CommandContext(ctx,"node","temp.txt")
     cmd.Stdin = strings.NewReader(details.Input)
     //fmt.Println("running code with",details.Input)
     //cmd.Run()
@@ -115,6 +125,10 @@ if errors.Is(result.Error, gorm.ErrRecordNotFound) {
     cmd.Stderr = &buff
     err = cmd.Run()
 
+  if ctx.Err() == context.DeadlineExceeded { 
+    c.String(400, "Code execution timed out")
+    return
+  }
     if err != nil{
       c.String(400,"error running code")
     }
@@ -123,13 +137,18 @@ if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 
   }else if details.Language == "ruby"{
 
-    cmd := exec.Command("ruby","temp.txt")
+    cmd := exec.CommandContext(ctx,"ruby","temp.txt")
     cmd.Stdin = strings.NewReader(details.Input)
     //fmt.Println("running code with",details.Input)
     //cmd.Run()
     cmd.Stdout = &buff
     cmd.Stderr = &buff
     err = cmd.Run()
+
+  if ctx.Err() == context.DeadlineExceeded { 
+    c.String(400, "Code execution timed out")
+    return
+  }
 
     if err != nil{
       c.String(400,"error running code")
@@ -139,13 +158,18 @@ if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 
   }else if details.Language == "php" {
 
-    cmd := exec.Command("php","temp.txt")
+    cmd := exec.CommandContext(ctx,"php","temp.txt")
     cmd.Stdin = strings.NewReader(details.Input)
     //fmt.Println("running code with",details.Input)
     //cmd.Run()
     cmd.Stdout = &buff
     cmd.Stderr = &buff
     err = cmd.Run()
+
+  if ctx.Err() == context.DeadlineExceeded { 
+    c.String(400, "Code execution timed out")
+    return
+  }
 
     if err != nil{
       c.String(400,"error running code")
@@ -155,13 +179,18 @@ if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 
   }else if details.Language == "perl" {
 
-    cmd := exec.Command("perl","temp.txt")
+    cmd := exec.CommandContext(ctx,"perl","temp.txt")
     cmd.Stdin = strings.NewReader(details.Input)
     //fmt.Println("running code with",details.Input)
     //cmd.Run()
     cmd.Stdout = &buff
     cmd.Stderr = &buff
     err = cmd.Run()
+
+  if ctx.Err() == context.DeadlineExceeded { 
+    c.String(400, "Code execution timed out")
+    return
+  }
 
     if err != nil{
       c.String(400,"error running code")
