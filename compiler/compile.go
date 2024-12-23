@@ -76,6 +76,7 @@ func Compile(c *gin.Context){
   }
 
   defer file.Close()
+  defer os.Remove("temp.txt")
 
  /*  file.Write([]byte(details.code)) */
   fmt.Println("the code is",details.Code)
@@ -220,5 +221,5 @@ if result.RowsAffected > 0 {
     db.Create(&myInput)
 
 
- os.Remove("temp.txt")
+ //os.Remove("temp.txt")
 }
