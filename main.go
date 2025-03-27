@@ -1,39 +1,52 @@
 package main
 
 import (
-  "final/auth"
-  "final/compiler"
-  "final/questions"
-  "github.com/gin-gonic/gin"
-  "gorm.io/gorm"
-  "gorm.io/driver/sqlite"
+	"final/auth"
+	"final/compiler"
+	"final/questions"
+	"fmt"
+	"log"
+
+	"github.com/gin-gonic/gin"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 var db *gorm.DB
 
-func main(){
+func main() {
 
-  db, err := gorm.Open(sqlite.Open("data.db"), &gorm.Config{})
-  if err != nil {
-     panic("failed to connect to the database")
-  }
+	var err error
+	db, err = gorm.Open(sqlite.Open("data.db"), &gorm.Config{})
+	if err != nil {
+		log.Fatal("Failed to connect to database:", err)
+	}
 
+	fmt.Println("Database connected successfully")
 
-  db.AutoMigrate(&compiler.Dbstruct{}, &auth.User{})
+	err = db.AutoMigrate(&compiler.Dbstruct{}, &auth.User{})
+	if err != nil {
+		log.Fatal("Migration failed:", err)
+	}
 
-  auth.SetDB(db)
+	fmt.Println("Database migration complete")
+	auth.SetDB(db)
 
-  r := gin.Default()
+	r := gin.Default()
+	fmt.Println("Router initialized")
 
-  r.POST("/signup",auth.SignUp)
-  r.POST("/signin",auth.SignIn)
-  r.GET("/fetch",auth.Fetch)
+	r.POST("/signup", auth.SignUp)
+	r.POST("/signin", auth.SignIn)
+	r.GET("/fetch", auth.Fetch)
+	r.POST("/run", compiler.Compile)
+	r.POST("/question", questions.CreateQuestion)
+	r.GET("/question", questions.FetchQuestions)
 
-  r.POST("/run",compiler.Compile)
-
-  r.POST("/question",questions.CreateQuestion)
-  r.GET("/question",questions.FetchQuestions)
-
-  r.Run()
-
+	port := ":8080"
+	fmt.Println("Server listening on port", port)
+	err = r.Run(port)
+	if err != nil {
+		log.Fatal("Failed to start server:", err)
+	}
 }
+
