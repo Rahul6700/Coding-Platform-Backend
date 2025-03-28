@@ -1,15 +1,14 @@
 package compiler
 
 import (
-  "context"
-  "time"
+  //"context"
+  //"time"
   "github.com/gin-gonic/gin"
   "os"
-  "os/exec"
-  "strings"
-  "bytes"
-  "errors"
-  "fmt"
+  //"strings"
+  //"errors"
+  //"fmt"
+  "log"
   "gorm.io/gorm"
   "gorm.io/driver/sqlite"
   "final/key"
@@ -31,195 +30,105 @@ type Dbstruct struct {
   Output string
 }
 
-//supported languages for now: python, javascript, php, ruby, perl
-// while sending requests use this format for the "language":
-// "python", "javascript", "php", "ruby", "perl"
-
 func Compile(c *gin.Context){
-
-  //token validation happens first
-  tokenstring := c.GetHeader("Authorization") //token is fetched from header
+  // Token validation (existing code)
+  tokenstring := c.GetHeader("Authorization")
   if tokenstring == "" {
     c.String(400, "token missing")
     return
   }
 
-  //token signing using the secret key
-	token, err := jwt.Parse(tokenstring, func(token *jwt.Token) (interface{}, error) {
-		return []byte(key.SECRET_KEY), nil 
-	})
+  token, err := jwt.Parse(tokenstring, func(token *jwt.Token) (interface{}, error) {
+    return []byte(key.SECRET_KEY), nil 
+  })
 
-  //if validation fails, the function execution terminates
-	if err != nil || !token.Valid {
-		c.String(400, "Token validation failed")
-		return
-	}
+  if err != nil || !token.Valid {
+    c.String(400, "Token validation failed")
+    return
+  }
 
-	//if token passes all these, the function runs
+  // Parse input details
   var details Inp
-   if err := c.BindJSON(&details); err != nil {
+  if err := c.BindJSON(&details); err != nil {
     c.String(400, "Invalid input: %v", err)
     return
-}
-  //opening db connection
-  db, err := gorm.Open(sqlite.Open("code.db"),&gorm.Config{})
-  if err != nil{
-    panic("initial connection to db unsuccessful")
+  }
+
+  // Open database connection
+  db, err := gorm.Open(sqlite.Open("code.db"), &gorm.Config{})
+  if err != nil {
+    log.Println("Database connection failed")
+    c.String(500, "Database connection failed")
+    return
   }
 
   db.AutoMigrate(&Dbstruct{})
 
-  //fmt.Println("the struct is",details) 
-  file, err := os.Create("temp.txt")
-  if err != nil{
-    c.String(400, "error in creating temp file")
-  }
-
-  defer file.Close()
-  defer os.Remove("temp.txt")
-
- /*  file.Write([]byte(details.code)) */
-  fmt.Println("the code is",details.Code)
-  n, err := file.WriteString(details.Code)
+  // Create temporary file
+  tempFile, err := os.CreateTemp("", "usercode-*")
   if err != nil {
-    c.String(400, "error while writing code to file %d",n)
+    log.Println("Failed to create temporary file")
+    c.String(500, "Failed to create temporary file")
+    return
   }
+  defer os.Remove(tempFile.Name())
+  defer tempFile.Close()
 
-  // checking for memorisation
-result := db.First(&Dbstruct{}, " Language = ? AND Code = ? AND Input = ?", details.Language, details.Code, details.Input)
-var buff bytes.Buffer
-
-//if no memorisation found
-if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-
-  ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-  defer cancel()
-
-  if details.Language == "python"{
-
-    cmd := exec.CommandContext(ctx,"python3","temp.txt")
-    cmd.Stdin = strings.NewReader(details.Input)
-    //fmt.Println("running code with",details.Input)
-    //cmd.Run()
-    cmd.Stdout = &buff
-    cmd.Stderr = &buff
-    err = cmd.Run()
-
-  if ctx.Err() == context.DeadlineExceeded { 
-    c.String(400, "Code execution timed out")
+  // Write code to temporary file
+  if _, err := tempFile.WriteString(details.Code); err != nil {
+    log.Println("Failed to write code to file")
+    c.String(500, "Failed to write code to file")
     return
   }
 
-    if err != nil{
-      c.String(400,"error running code")
-    }
-    fmt.Println("Buffer content:", buff.String())
-    c.String(200, buff.String())
+  // Check for memoization
+  result := db.First(&Dbstruct{}, "Language = ? AND Code = ? AND Input = ?", details.Language, details.Code, details.Input)
 
-  }else if details.Language == "javascript"{
-
-    cmd := exec.CommandContext(ctx,"node","temp.txt")
-    cmd.Stdin = strings.NewReader(details.Input)
-    //fmt.Println("running code with",details.Input)
-    //cmd.Run()
-    cmd.Stdout = &buff
-    cmd.Stderr = &buff
-    err = cmd.Run()
-
-  if ctx.Err() == context.DeadlineExceeded { 
-    c.String(400, "Code execution timed out")
-    return
+  // Language mapping for Docker
+  languageMap := map[string]string{
+    "python": "py",
+    "javascript": "js",
+    "ruby": "rb",
+    "php": "php",
+    "perl": "pl",
   }
-    if err != nil{
-      c.String(400,"error running code")
-    }
-    fmt.Println("Buffer content:", buff.String())
-    c.String(200, buff.String())
 
-  }else if details.Language == "ruby"{
-
-    cmd := exec.CommandContext(ctx,"ruby","temp.txt")
-    cmd.Stdin = strings.NewReader(details.Input)
-    //fmt.Println("running code with",details.Input)
-    //cmd.Run()
-    cmd.Stdout = &buff
-    cmd.Stderr = &buff
-    err = cmd.Run()
-
-  if ctx.Err() == context.DeadlineExceeded { 
-    c.String(400, "Code execution timed out")
+  dockerLang, ok := languageMap[details.Language]
+  if !ok {
+    log.Printf("Unsupported language: %s", details.Language)
+    c.String(400, "Unsupported language")
     return
   }
 
-    if err != nil{
-      c.String(400,"error running code")
-    }
-    fmt.Println("Buffer content:", buff.String())
-    c.String(200, buff.String())
-
-  }else if details.Language == "php" {
-
-    cmd := exec.CommandContext(ctx,"php","temp.txt")
-    cmd.Stdin = strings.NewReader(details.Input)
-    //fmt.Println("running code with",details.Input)
-    //cmd.Run()
-    cmd.Stdout = &buff
-    cmd.Stderr = &buff
-    err = cmd.Run()
-
-  if ctx.Err() == context.DeadlineExceeded { 
-    c.String(400, "Code execution timed out")
+  // If found in cache, return cached output
+  if result.RowsAffected > 0 {
+    var cachedResult Dbstruct
+    db.First(&cachedResult, "Language = ? AND Code = ? AND Input = ?", details.Language, details.Code, details.Input)
+    c.String(200, cachedResult.Output)
     return
   }
 
-    if err != nil{
-      c.String(400,"error running code")
-    }
-    fmt.Println("Buffer content:", buff.String())
-    c.String(200, buff.String())
+  // Run code in Docker sandbox
+  log.Printf("Executing code in Docker. Language: %s, File: %s", dockerLang, tempFile.Name())
+  output, errOutput := runDocker(tempFile, dockerLang, details.Input)
 
-  }else if details.Language == "perl" {
-
-    cmd := exec.CommandContext(ctx,"perl","temp.txt")
-    cmd.Stdin = strings.NewReader(details.Input)
-    //fmt.Println("running code with",details.Input)
-    //cmd.Run()
-    cmd.Stdout = &buff
-    cmd.Stderr = &buff
-    err = cmd.Run()
-
-  if ctx.Err() == context.DeadlineExceeded { 
-    c.String(400, "Code execution timed out")
+  // Check for execution errors
+  if errOutput != "" {
+    log.Printf("Execution error: %s", errOutput)
+    c.String(400, "Execution error: %s", errOutput)
     return
   }
 
-    if err != nil{
-      c.String(400,"error running code")
-    }
-    fmt.Println("Buffer content:", buff.String())
-    c.String(200, buff.String())
-
+  // Save to database cache
+  dbEntry := Dbstruct{
+    Language: details.Language,
+    Code:     details.Code,
+    Input:    details.Input,
+    Output:   output,
   }
-  return
+  db.Create(&dbEntry)
 
-}
-// fetching output from db using memorisation
-if result.RowsAffected > 0 {
-    var myInput Dbstruct
-    db.First(&myInput, "Language = ? AND Code = ? AND Input = ?",details.Language, details.Code, details.Input)
-    myOutput := myInput.Output
-    c.String(200, myOutput)
-    return
-}
-    
-      myInput := Dbstruct{
-      Language: details.Language,
-      Code: details.Code,
-      Input: details.Input,
-      Output: buff.String(),
-    }
-    db.Create(&myInput)
-
-
- //os.Remove("temp.txt")
+  // Return output
+  log.Printf("Code execution completed. Output: %s", output)
+  c.String(200, output)
 }
